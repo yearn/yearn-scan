@@ -16,6 +16,9 @@ The package registry was checked on 2026-09-17. All selected tooling has a
 release within the last six months. Cloudflare maintains Wrangler, Miniflare,
 and Workers types; Microsoft maintains TypeScript; DefinitelyTyped maintains
 Node types. These tools are needed as long as this is a TypeScript Worker.
+Playwright is a development-only dependency for browser smoke tests of the
+private table, hostile text, pagination, and external links. It is maintained
+by Microsoft, adds nothing to the Worker, and was released within six months.
 No bundle-size exception is needed for development-only packages.
 
 Use the committed lockfile and frozen installs. Only the esbuild and workerd

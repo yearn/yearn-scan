@@ -8,7 +8,7 @@ test('Access checks signatures, issuer, audience, expiry and user claims', async
   const app = await setup(); t.after(() => app.mf.dispose());
   const valid = await app.token();
   const read = (token) => app.request('/api/v1/reports', 'GET', undefined, '', { 'Cf-Access-Jwt-Assertion': token });
-  assert.equal((await read(valid)).status, 404, 'valid reader passes authentication before read API exists');
+  assert.equal((await read(valid)).status, 200, 'valid reader can access the catalog');
   for (const claims of [
     { iss: 'https://evil.cloudflareaccess.com' }, { aud: ['wrong'] }, { exp: 1 },
     { exp: undefined }, { exp: '9999999999' }, { iat: 9999999999 }, { nbf: 9999999999 },

@@ -5,6 +5,7 @@
   "compatibility_date": "2026-05-15",
   "workers_dev": false,
   "preview_urls": false,
+  "rules": [{ "type": "Text", "globs": ["**/*.html", "**/*.css", "**/ui/client.js"], "fallthrough": true }],
   "vars": {
     "APP_ORIGIN": "http://localhost:8787",
     "ACCESS_ISSUER": "https://configure-me.cloudflareaccess.com",

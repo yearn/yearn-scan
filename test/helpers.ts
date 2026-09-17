@@ -32,7 +32,7 @@ export async function setup(options = {}) {
   const signing = await signingFixture();
   let outbound = 0;
   const mf = new Miniflare({
-    modules: true, scriptPath: 'dist/index.js', compatibilityDate: '2026-05-15',
+    modules: true, modulesRules: [{ type: 'Text', include: ['**/*.html', '**/*.css', '**/*-client.js'], fallthrough: true }], scriptPath: 'dist/index.js', compatibilityDate: '2026-05-15',
     bindings: { APP_ORIGIN: origin, ACCESS_ISSUER: issuer, ACCESS_AUD: audience, PUBLISH_KEYS: `${keyA},${keyB}`, ...options },
     d1Databases: ['DB'],
     outboundService: async (request) => {
