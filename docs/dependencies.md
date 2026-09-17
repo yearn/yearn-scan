@@ -12,8 +12,9 @@ These are development-tool/type-definition exceptions under npm-policy and
 add no code to the deployed Worker. Wrangler and Miniflare are pinned to the
 same stable generation instead of the registry's current alpha runtime.
 
-The package registry was checked on 2026-09-17. All selected tooling has a
-release within the last six months. Cloudflare maintains Wrangler, Miniflare,
+The package registry was checked on 2026-09-17. The selected projects remain
+actively maintained, with new releases within the last six months; the compiler
+is deliberately pinned to the established TypeScript 5.9 line. Cloudflare maintains Wrangler, Miniflare,
 and Workers types; Microsoft maintains TypeScript; DefinitelyTyped maintains
 Node types. These tools are needed as long as this is a TypeScript Worker.
 Playwright is a development-only dependency for browser smoke tests of the

@@ -9,6 +9,7 @@
   },
   "scripts": {
     "dev": "wrangler dev",
+    "demo": "pnpm build && node scripts/demo.mjs",
     "build": "wrangler deploy --dry-run --outdir dist",
     "typecheck": "tsc --noEmit",
     "test": "pnpm build && node --test test/*.test.ts",

@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "run_id": "example-ci-12345-ai-pr",
+  "repository": "yearn/tokenized-strategy",
+  "commit_sha": "0123456789abcdef0123456789abcdef01234567",
+  "ref": "refs/pull/123/head",
+  "pr_number": 123,
+  "scan_type": "ai-pr",
+  "scanner": { "name": "review-agent", "version": "1.0.0" },
+  "ai_model": "example-model",
+  "started_at": "2026-09-17T09:00:00.000Z",
+  "finished_at": "2026-09-17T09:05:00.000Z",
+  "status": "completed",
+  "severity_counts": { "critical": 0, "high": 1, "medium": 2, "low": 0, "info": null },
+  "report_url": "https://reports.example.com/reviews/123.html"
+}
