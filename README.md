@@ -19,7 +19,7 @@ pnpm check
 pnpm demo
 ```
 
-Open `http://127.0.0.1:8788` for a complete local table with synthetic data.
+Open `http://127.0.0.1:3000` for a complete local table with synthetic data.
 The demo binds only to loopback and discards data on exit. Its local proxy signs
 test Access JWTs; the production Worker contains no authentication bypass.
 

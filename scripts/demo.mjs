@@ -21,7 +21,7 @@ const server = createServer(async (request, response) => {
     response.end(Buffer.from(await result.arrayBuffer()));
   } catch { response.writeHead(500); response.end('Local demo error'); }
 });
-server.listen(8788, '127.0.0.1', () => console.log('Local demo: http://127.0.0.1:8788 (synthetic data; discarded on exit)'));
+server.listen(3000, '127.0.0.1', () => console.log('Local demo: http://127.0.0.1:3000 (synthetic data; discarded on exit)'));
 for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, async () => {
   server.close(); await app.mf.dispose(); process.exit(0);
 });
