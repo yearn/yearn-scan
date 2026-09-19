@@ -103,3 +103,47 @@ test('SSR and RSC stay private, uncached and reflect accepted updates', async t 
   assert.ok(!(await (await read('/?q=missing')).text()).includes('Changed scanner'));
   assert.equal((await app.mf.dispatchFetch('https://alternate.example/?_rsc=test', { headers: { ...headers, RSC: '1' } })).status, 421);
 });
+
+test('displayed-status filters use highest severity and preserve cursor pagination', async t => {
+  const app = await setup(); t.after(() => app.mf.dispose());
+  const headers = { 'Cf-Access-Jwt-Assertion': await app.token() };
+  const zeros = { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
+  const read = async query => {
+    const response = await app.request(`/api/v1/reports?${query}`, 'GET', undefined, '', headers);
+    assert.equal(response.status, 200);
+    return response.json();
+  };
+  for (const [run_id, severity_counts, status = 'completed'] of [
+    ['critical', { critical: 1, high: 2, medium: 3, low: 4, info: 5 }],
+    ['high-null', { ...zeros, critical: null, high: 2 }],
+    ['high', { ...zeros, high: 1, medium: 2 }],
+    ['medium', { ...zeros, medium: 3, low: 4 }],
+    ['low', { ...zeros, low: 4, info: 5 }],
+    ['info', { ...zeros, info: 5 }],
+    ['clear', zeros],
+    ['unknown', { critical: null, high: null, medium: null, low: null, info: null }],
+    ['incomplete-counts', { ...zeros, info: null }],
+    ['running', { ...zeros, critical: 1 }, 'running'],
+    ['failed', { ...zeros, critical: 1 }, 'failed'],
+  ]) {
+    const response = await app.request('/api/v1/upload', 'POST', fixture({ repository: 'yearn/severity', scan_type: 'custom-scan', run_id, status, severity_counts }));
+    assert.equal(response.status, 201);
+  }
+  for (const [status, expected] of Object.entries({ critical: ['critical'], high: ['high', 'high-null'], medium: ['medium'], low: ['low'], info: ['info'], 'no-findings': ['clear'], running: ['running'], failed: ['failed'] })) {
+    const response = await read(`q=yearn%2Fseverity&scan_type=custom-scan&status=${status}`);
+    assert.deepEqual(response.reports.map(report => report.run_id), expected, status);
+    assert.deepEqual(response.repositories, ['yearn/severity']);
+  }
+  assert.equal((await read('status=completed')).reports.length, 9, 'execution-state URL/API filter is retained');
+  assert.equal((await read('status=critical&q=absent')).reports.length, 0);
+  assert.equal((await read('status=critical&scan_type=dependency')).reports.length, 0);
+  const first = await read('status=high&limit=1');
+  assert.equal(first.reports[0].run_id, 'high');
+  assert.ok(first.next_cursor);
+  const second = await read(`status=high&limit=1&cursor=${first.next_cursor}`);
+  assert.equal(second.reports[0].run_id, 'high-null');
+  assert.equal(second.next_cursor, null);
+  for (const query of ['status=unknown', `status=critical&limit=1&cursor=${first.next_cursor}`]) {
+    assert.equal((await app.request(`/api/v1/reports?${query}`, 'GET', undefined, '', headers)).status, 400);
+  }
+});

@@ -60,6 +60,11 @@ test('browser: operational table, filters, races, pagination, polling and privat
   assert.equal(await page.getByRole('button', { name: /Refresh|Apply/ }).count(), 0);
   assert.equal(await page.getByRole('navigation', { name: 'Result pages' }).count(), 0);
   assert.equal(await page.locator('.brand img').evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0), true);
+  assert.deepEqual(await page.getByLabel('Status', { exact: true }).locator('option').allTextContents(),
+    ['all statuses', 'running', 'failed', 'critical', 'high', 'medium', 'low', 'info', 'no findings']);
+  assert.equal(await page.locator('.report-row-critical').count(), 2);
+  const criticalColors = await page.locator('.report-row-critical').first().locator('.repository, .owner, .client-column, time, .report-link').evaluateAll(elements => elements.map(el => getComputedStyle(el).color));
+  assert.ok(criticalColors.every(color => color === 'rgb(255, 122, 139)'));
   const rows = await page.locator('.report-row').evaluateAll(rows => rows.map(row => row.getBoundingClientRect().height));
   assert.ok(rows.every(height => height === 120), JSON.stringify(rows));
   assert.equal(await page.locator('header').evaluate(header => header.getBoundingClientRect().height), 76);
@@ -85,6 +90,14 @@ test('browser: operational table, filters, races, pagination, polling and privat
   assert.equal(await popup.locator('h1').innerText(), 'Client-hosted report');
   await popup.close();
 
+  for (const [filter, indicator, count] of [['critical', 'critical', 2], ['high', 'high', 1], ['medium', 'medium', 1], ['low', 'low', 1], ['info', 'info', 1], ['no-findings', 'clear', 1]] as const) {
+    await page.getByLabel('Status', { exact: true }).selectOption(filter);
+    await page.getByRole('status').filter({ hasText: `${count} scans` }).waitFor();
+    await page.waitForFunction(({ indicator, count }) => document.querySelectorAll(`.status-${indicator}`).length === count, { indicator, count });
+    assert.equal(await page.locator('.report-row').count(), count);
+    assert.ok(page.url().includes(`status=${filter}`));
+  }
+
   // A slow superseded request must not replace a newer filter result.
   let release: () => void;
   let intercepted: () => void;
@@ -99,8 +112,8 @@ test('browser: operational table, filters, races, pagination, polling and privat
   await page.getByLabel('Status', { exact: true }).selectOption('failed'); await seen;
   await page.locator('.skeleton-row').first().waitFor();
   assert.ok(page.url().includes('status=failed'));
-  await page.getByLabel('Status', { exact: true }).selectOption('completed');
-  await page.getByRole('status').filter({ hasText: '8 scans' }).waitFor();
+  await page.getByLabel('Status', { exact: true }).selectOption('high');
+  await page.getByRole('status').filter({ hasText: '1 scans' }).waitFor();
   release(); intercept = null;
   await page.getByLabel('Repository', { exact: true }).selectOption('yearn/failed');
   await page.getByText('No scans match these filters.').waitFor();
@@ -131,7 +144,7 @@ test('browser: operational table, filters, races, pagination, polling and privat
   await page.getByRole('status').filter({ hasText: '1 scans' }).waitFor();
   await page.getByRole('button', { name: '← Previous' }).click();
   await page.getByRole('status').filter({ hasText: '2 scans' }).waitFor();
-  await page.getByLabel('Status', { exact: true }).selectOption('completed');
+  await page.getByLabel('Status', { exact: true }).selectOption('high');
   await page.getByRole('status').filter({ hasText: '2 scans' }).waitFor();
   assert.ok(!page.url().includes('cursor='));
   assert.ok(page.url().includes('scan_type=custom-analysis'));
@@ -175,7 +188,7 @@ test('browser: operational table, filters, races, pagination, polling and privat
   await app.db.prepare("UPDATE reports SET payload = json_set(payload, '$.report_url', 'javascript:alert(1)', '$.pr_url', 'https://user:password@example.com', '$.pr_title', ?) WHERE repository = 'yearn/failed'").bind(hostile).run();
   await page.goto(`${origin}/?q=yearn%2Ffailed`);
   await page.locator('.status-failed').waitFor();
-  assert.equal(await page.locator('tbody a').count(), 0);
+  assert.equal(await page.locator('tbody .report-link, tbody .pr-metadata a').count(), 0);
   assert.equal(await page.locator('tbody img, tbody script').count(), 0);
   assert.equal(await page.evaluate(() => (window as any).pwned), undefined);
   await page.goto(`${origin}/?status=invalid`);

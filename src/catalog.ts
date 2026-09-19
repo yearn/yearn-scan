@@ -3,10 +3,11 @@ import type { Env } from './env.ts';
 import { HttpError, json } from './http.ts';
 import { publicReport } from './reports.ts';
 import type { ReportRow } from './reports.ts';
-import { STATUSES } from './schema.ts';
+import { SEVERITIES, STATUSES } from './schema.ts';
 
 interface CatalogRow extends ReportRow { repository: string; repo_seq: number }
 interface Cursor { v: number; query: string; repo_seq: number; repository: string; seq: number; id: string }
+const statusFilters: readonly string[] = [...STATUSES, ...SEVERITIES, 'no-findings'];
 const fail = (): never => { throw new HttpError(400, 'Invalid query or cursor'); };
 
 export interface Catalog { schema_version: 1; repositories: string[]; reports: ReturnType<typeof publicReport>[]; next_cursor: string | null }
@@ -22,7 +23,7 @@ export async function getReports(url: URL, env: Env): Promise<Catalog> {
   const scanType = params.get('scan_type') || '';
   const status = params.get('status') || '';
   const limitText = params.get('limit') || '50';
-  if (q.length > 140 || /[\u0000-\u001f\u007f]/.test(q) || (scanType && !/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(scanType)) || scanType.length > 64 || (status && !STATUSES.includes(status as typeof STATUSES[number])) || !/^\d{1,3}$/.test(limitText)) fail();
+  if (q.length > 140 || /[\u0000-\u001f\u007f]/.test(q) || (scanType && !/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(scanType)) || scanType.length > 64 || (status && !statusFilters.includes(status)) || !/^\d{1,3}$/.test(limitText)) fail();
   const limit = Number(limitText);
   if (limit < 1 || limit > 100) fail();
   const query = hex(await digest(JSON.stringify([q, scanType, status, limit])));
@@ -39,7 +40,19 @@ export async function getReports(url: URL, env: Env): Promise<Catalog> {
   const conditions: string[] = [];
   if (q) { conditions.push("r.repository LIKE ? ESCAPE '\\'"); values.push(`%${q.replace(/[\\%_]/g, '\\$&')}%`); }
   if (scanType) { conditions.push('r.scan_type = ?'); values.push(scanType); }
-  if (status) { conditions.push('r.status = ?'); values.push(status); }
+  if (status) {
+    if (STATUSES.includes(status as typeof STATUSES[number])) {
+      conditions.push('r.status = ?');
+    } else {
+      // Match the displayed highest reported severity, before cursor pagination.
+      const count = (severity: typeof SEVERITIES[number]) => `json_extract(r.payload, '$.severity_counts.${severity}')`;
+      conditions.push(`r.status = 'completed' AND (CASE
+        ${SEVERITIES.map(severity => `WHEN ${count(severity)} > 0 THEN '${severity}'`).join(' ')}
+        WHEN ${SEVERITIES.map(severity => `${count(severity)} = 0`).join(' AND ')} THEN 'no-findings'
+        ELSE NULL END) = ?`);
+    }
+    values.push(status);
+  }
   if (cursor) {
     conditions.push(`(a.repo_seq < ? OR (a.repo_seq = ? AND (r.repository > ? OR
       (r.repository = ? AND (r.activity_seq < ? OR (r.activity_seq = ? AND r.id < ?))))))`);

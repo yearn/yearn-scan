@@ -108,7 +108,7 @@ read application. Publishing keys do not satisfy this requirement.
 | --- | --- |
 | `q` | Case-insensitive literal repository substring, up to 140 characters |
 | `scan_type` | Exact scan-type slug |
-| `status` | Exact execution status |
+| `status` | `running`, `failed`, highest reported severity (`critical`, `high`, `medium`, `low`, `info`), or `no-findings`; `completed` remains available through the API/URL |
 | `limit` | Page size, 1–100; default 50 |
 | `cursor` | Opaque `next_cursor` from the previous response |
 
@@ -118,7 +118,10 @@ Each report includes the normalized submission plus `id`, configured `client`,
 are not returned. `next_cursor: null` means the last page. `repositories` is a
 sorted distinct list from the whole catalog, independent of filters and pagination.
 The UI applies repo and status immediately; `scan_type` remains supported in URLs
-and the API. Running rows refresh every 15 seconds while the tab is visible.
+and the API. Severity filters match completed scans by their highest positive
+count. `no-findings` matches completed scans with all five counts exactly zero;
+null counts remain unavailable. Unknown results appear under All only.
+Running rows refresh every 15 seconds while the tab is visible.
 
 Repository order uses each repository's latest accepted create/change, including
 reports hidden by the current scan-type/status filter. Within each repository,

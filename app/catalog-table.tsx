@@ -50,8 +50,8 @@ function ReportRow({ report, now }: { report: PublicReport; now: number }) {
   const time = report.status === 'running' ? report.started_at : report.finished_at || report.updated_at;
   const [owner, repository] = report.repository.split('/');
   const pr = [report.pr_number ? `#${report.pr_number}` : '', report.pr_title].filter(Boolean).join(' · ');
-  return <tr className="report-row">
-    <td><div className="repository"><span className="owner">{owner} / </span>{repository}</div>{(pr || prHref) && <div className="pr-metadata">{prHref ? <a href={prHref} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">{pr || 'Pull request'} ↗</a> : pr}</div>}</td>
+  return <tr className={`report-row${report.status === 'completed' && (report.severity_counts.critical ?? 0) > 0 ? ' report-row-critical' : ''}`}>
+    <td><div className="repository"><a href={`https://github.com/${encodeURIComponent(owner!)}/${encodeURIComponent(repository!)}`} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer" aria-label={`Open ${report.repository} on GitHub`}><span className="owner">{owner} / </span>{repository}</a></div>{(pr || prHref) && <div className="pr-metadata">{prHref ? <a href={prHref} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">{pr || 'Pull request'} ↗</a> : pr}</div>}</td>
     <td>{name}</td>
     <td className="client-column">{report.client}</td>
     <td className="time-column"><time dateTime={time} title={time}>{relativeTime(time, now)}</time></td>
@@ -125,7 +125,7 @@ export default function CatalogTable({ initial = empty, initialFilters = { q: ''
     <header className="catalog-header">
       <a href="/" className="brand" aria-label="Yearn Scan home"><img src="/yearn-symbol.svg" alt="Yearn" width="40" height="47" /></a>
       <label className="filter"><span>repo</span><select aria-label="Repository" value={filters.q} onChange={event => filter({ ...filters, q: event.target.value })}><option value="">all repositories</option>{repositories.map(repository => <option key={repository} value={repository}>{repository.replace('/', ' / ')}</option>)}</select></label>
-      <label className="filter status-filter"><span>status</span><select aria-label="Status" value={filters.status} onChange={event => filter({ ...filters, status: event.target.value })}><option value="">all statuses</option><option value="running">running</option><option value="completed">completed</option><option value="failed">failed</option></select></label>
+      <label className="filter status-filter"><span>status</span><select aria-label="Status" value={filters.status} onChange={event => filter({ ...filters, status: event.target.value })}><option value="">all statuses</option><option value="running">running</option><option value="failed">failed</option>{severities.map(severity => <option key={severity} value={severity}>{severity}</option>)}<option value="no-findings">no findings</option>{filters.status === 'completed' && <option value="completed" hidden>completed</option>}</select></label>
     </header>
     <main aria-label="Repository scans">
       <div className="table-area" aria-busy={busy}>
