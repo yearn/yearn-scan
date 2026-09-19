@@ -11,7 +11,7 @@ export function json(value: unknown, status = 200, headers?: HeadersInit): Respo
 }
 
 export function contentSecurityPolicy(nonce?: string): string {
-  return `default-src 'none'; script-src 'self'${nonce ? ` 'nonce-${nonce}'` : ''}; style-src 'self'${nonce ? ` 'nonce-${nonce}'` : ''}; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'`;
+  return `default-src 'none'; script-src 'self'${nonce ? ` 'nonce-${nonce}'` : ''}; style-src 'self'${nonce ? ` 'nonce-${nonce}'` : ''}; img-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'`;
 }
 
 export async function apiResponse(run: () => Promise<Response>): Promise<Response> {

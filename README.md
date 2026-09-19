@@ -10,6 +10,11 @@ Production deployment, Cloudflare Access, and domain attachment are a separate
 operator step. Nothing in installation, checks, or the demo provisions resources.
 `yearn-artifacts` is independent and unchanged.
 
+The operational table applies repository and status filters immediately, preserves
+cursor pagination, and refreshes visible running scans every 15 seconds. Scan-type
+filtering remains available through the URL/API. The white Y symbol is from the
+[official Yearn press kit](https://presskit.yearn.fi/downloads/YEARN_SYMBOL_WHITE_RGB.svg).
+
 ## Local development
 
 Use Node 24 and pnpm 11.5.2:

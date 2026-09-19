@@ -105,14 +105,17 @@
       "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
     },
     "finished_at": {
-      "type": "string",
+      "type": [
+        "string",
+        "null"
+      ],
       "format": "date-time",
       "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$"
     },
     "status": {
       "enum": [
+        "running",
         "completed",
-        "partial",
         "failed"
       ]
     },
@@ -170,10 +173,31 @@
       }
     },
     "report_url": {
-      "type": "string",
+      "type": [
+        "string",
+        "null"
+      ],
       "format": "uri",
       "maxLength": 4096,
       "pattern": "^https://[^\\s\\\\@/?#]+(?:[/?#][^\\s\\\\]*)?$"
+    },
+    "pr_url": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "uri",
+      "maxLength": 4096,
+      "pattern": "^https://[^\\s\\\\@/?#]+(?:[/?#][^\\s\\\\]*)?$"
+    },
+    "pr_title": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1,
+      "maxLength": 512,
+      "pattern": "^[^\\u0000-\\u001f\\u007f]+$"
     }
   },
   "allOf": [

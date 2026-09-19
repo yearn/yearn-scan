@@ -15,22 +15,25 @@ runtime validation is `src/schema.ts`; the portable contract is
 | `commit_sha` | Required full 40-character hexadecimal Git SHA-1; normalized to lowercase |
 | `ref` | Optional string, up to 255 characters, or `null` |
 | `pr_number` | Optional positive safe integer or `null`; required for `ai-pr` |
+| `pr_title` | Optional nonempty PR title up to 512 characters or `null` |
+| `pr_url` | Optional safe absolute HTTPS URL or `null`, same URL rules as `report_url` |
 | `scan_type` | Required 1–64 character lowercase slug matching `^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$`; open vocabulary |
 | `scanner` | Required `{ "name": "...", "version": "..." }`; nonempty strings up to 128 characters each |
 | `ai_model` | Optional nonempty string up to 128 characters or `null` |
-| `started_at`, `finished_at` | Required valid UTC timestamps: `YYYY-MM-DDTHH:mm:ssZ` or `YYYY-MM-DDTHH:mm:ss.sssZ`; finish must not precede start |
-| `status` | Required `completed`, `partial`, or `failed`; execution outcome, not security severity |
+| `started_at`, `finished_at` | Required valid UTC timestamps: `YYYY-MM-DDTHH:mm:ssZ` or `YYYY-MM-DDTHH:mm:ss.sssZ`; `finished_at` may be `null`; a supplied finish must not precede start |
+| `status` | Required `running`, `completed`, or `failed`; execution outcome, not security severity |
 | `severity_counts` | Required object with all five keys: `critical`, `high`, `medium`, `low`, `info`; each is a nonnegative safe integer or `null` |
-| `report_url` | Required absolute HTTPS URL, up to 4096 characters, without credentials, whitespace, or backslashes |
+| `report_url` | Required `null` or absolute HTTPS URL, up to 4096 characters, without credentials, whitespace, or backslashes |
 
 Strings cannot contain ASCII control characters. Use `null` when a count is
 unavailable; zero means the scanner reported no findings at that severity.
-Failed or partial executions still require execution timestamps and a report
-URL, which can point to a client-hosted diagnostic report. Timestamps describe
-execution and do not control catalog ordering. Ref, PR number, and model default
+Completion time and report URL may be null in any execution state. No field
+combinations or state transitions are enforced based on status. Failed scans
+can link to a client-hosted diagnostic report. Timestamps describe
+execution and do not control catalog ordering. Ref, PR metadata, and model default
 to `null`; timestamps normalize to millisecond UTC. Repository and commit case,
 optional nulls, timestamp precision, and JSON key order are canonicalized before
-idempotency comparisons. Scanner/ref/model text is preserved and rendered as text.
+idempotency comparisons. Submitted text is preserved; visible client and PR text is rendered as text.
 
 Suggested scan types (custom slugs are accepted):
 
@@ -109,10 +112,13 @@ read application. Publishing keys do not satisfy this requirement.
 | `limit` | Page size, 1–100; default 50 |
 | `cursor` | Opaque `next_cursor` from the previous response |
 
-Response: `{ "schema_version": 1, "reports": [...], "next_cursor": "..." }`.
+Response: `{ "schema_version": 1, "repositories": ["yearn/vaults"], "reports": [...], "next_cursor": "..." }`.
 Each report includes the normalized submission plus `id`, configured `client`,
 `created_at`, and `updated_at`. Ownership fingerprints and original payloads
-are not returned. `next_cursor: null` means the last page.
+are not returned. `next_cursor: null` means the last page. `repositories` is a
+sorted distinct list from the whole catalog, independent of filters and pagination.
+The UI applies repo and status immediately; `scan_type` remains supported in URLs
+and the API. Running rows refresh every 15 seconds while the tab is visible.
 
 Repository order uses each repository's latest accepted create/change, including
 reports hidden by the current scan-type/status filter. Within each repository,

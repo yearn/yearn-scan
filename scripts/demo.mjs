@@ -6,9 +6,9 @@ import { setup, fixture, origin } from '../test/helpers.ts';
 
 const app = await setup();
 for (const values of [
-  { repository: 'yearn/tokenized-strategy', scan_type: 'ai-pr', pr_number: 241, ai_model: 'example-model', scanner: { name: 'PR review', version: '1.0' } },
-  { repository: 'yearn/yearn-vaults-v3', scan_type: 'smart-contract', scanner: { name: 'Contract analysis', version: '1.0' } },
-  { repository: 'yearn/tokenized-strategy', scan_type: 'dependency', scanner: { name: 'Dependency audit', version: '1.0' }, status: 'partial' },
+  { repository: 'yearn/tokenized-strategy', scan_type: 'ai-pr', pr_number: 241, pr_title: 'Improve strategy accounting', pr_url: 'https://github.com/yearn/tokenized-strategy/pull/241', ai_model: 'example-model', scanner: { name: 'PR review', version: '1.0' } },
+  { repository: 'yearn/yearn-vaults-v3', scan_type: 'smart-contract', severity_counts: { critical: 1, high: 3, medium: 7, low: 12, info: 4 }, scanner: { name: 'Contract analysis', version: '1.0' } },
+  { repository: 'yearn/tokenized-strategy', scan_type: 'dependency', scanner: { name: 'Dependency audit', version: '1.0' }, status: 'running', finished_at: null, report_url: null, severity_counts: { critical: null, high: null, medium: null, low: null, info: null } },
 ]) await app.request('/api/v1/upload', 'POST', fixture(values));
 
 const server = createServer(async (request, response) => {

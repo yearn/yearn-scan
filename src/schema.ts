@@ -1,7 +1,7 @@
 import { HttpError } from './http.ts';
 
 export const SEVERITIES = ['critical', 'high', 'medium', 'low', 'info'] as const;
-export const STATUSES = ['completed', 'partial', 'failed'] as const;
+export const STATUSES = ['running', 'completed', 'failed'] as const;
 export interface Submission {
   schema_version: 1;
   run_id: string;
@@ -9,14 +9,16 @@ export interface Submission {
   commit_sha: string;
   ref: string | null;
   pr_number: number | null;
+  pr_title?: string | null;
+  pr_url?: string | null;
   scan_type: string;
   scanner: { name: string; version: string };
   ai_model: string | null;
   started_at: string;
-  finished_at: string;
+  finished_at: string | null;
   status: typeof STATUSES[number];
   severity_counts: Record<typeof SEVERITIES[number], number | null>;
-  report_url: string;
+  report_url: string | null;
 }
 
 function invalid(field: string): never { throw new HttpError(400, `Invalid ${field}`); }
@@ -43,9 +45,18 @@ function timestamp(value: unknown, field: string): string {
   return normalized;
 }
 
+function safeUrl(value: unknown, field: string): string {
+  const raw = str(value, field, 4096);
+  try {
+    const url = new URL(raw);
+    if (!raw.startsWith('https://') || /\s|\\/.test(raw) || url.protocol !== 'https:' || !url.hostname || url.username || url.password) invalid(field);
+  } catch { invalid(`${field}: HTTPS URL without credentials required`); }
+  return raw;
+}
+
 export function validateSubmission(input: unknown): Submission {
   const x = object(input, 'submission');
-  keys(x, ['schema_version', 'run_id', 'repository', 'commit_sha', 'ref', 'pr_number', 'scan_type', 'scanner', 'ai_model', 'started_at', 'finished_at', 'status', 'severity_counts', 'report_url'], 'submission');
+  keys(x, ['schema_version', 'run_id', 'repository', 'commit_sha', 'ref', 'pr_number', 'pr_title', 'pr_url', 'scan_type', 'scanner', 'ai_model', 'started_at', 'finished_at', 'status', 'severity_counts', 'report_url'], 'submission');
   if (x.schema_version !== 1) invalid('schema_version');
   const repository = str(x.repository, 'repository', 140, /^[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,38})\/[a-zA-Z0-9_.-]{1,100}$/).toLowerCase();
   if (['.', '..'].includes(repository.split('/')[1]!)) invalid('repository');
@@ -65,13 +76,9 @@ export function validateSubmission(input: unknown): Submission {
   }
   if (!STATUSES.includes(x.status as Submission['status'])) invalid('status');
   const started_at = timestamp(x.started_at, 'started_at');
-  const finished_at = timestamp(x.finished_at, 'finished_at');
-  if (finished_at < started_at) invalid('finished_at: precedes started_at');
-  const report_url = str(x.report_url, 'report_url', 4096);
-  try {
-    const url = new URL(report_url);
-    if (!report_url.startsWith('https://') || /\s|\\/.test(report_url) || url.protocol !== 'https:' || !url.hostname || url.username || url.password) invalid('report_url');
-  } catch { invalid('report_url: HTTPS URL without credentials required'); }
+  const finished_at = x.finished_at === null ? null : timestamp(x.finished_at, 'finished_at');
+  if (finished_at !== null && finished_at < started_at) invalid('finished_at: precedes started_at');
+  const report_url = x.report_url === null ? null : safeUrl(x.report_url, 'report_url');
   return {
     schema_version: 1,
     run_id: str(x.run_id, 'run_id', 128, /^[a-zA-Z0-9][a-zA-Z0-9._:-]*$/),
@@ -79,6 +86,8 @@ export function validateSubmission(input: unknown): Submission {
     commit_sha: str(x.commit_sha, 'commit_sha', 40, /^[a-fA-F0-9]{40}$/).toLowerCase(),
     ref: optionalText(x.ref, 'ref', 255),
     pr_number: pr_number as number | null,
+    pr_title: optionalText(x.pr_title, 'pr_title', 512),
+    pr_url: x.pr_url == null ? null : safeUrl(x.pr_url, 'pr_url'),
     scan_type,
     scanner: { name: str(scanner.name, 'scanner.name', 128), version: str(scanner.version, 'scanner.version', 128) },
     ai_model: optionalText(x.ai_model, 'ai_model', 128),

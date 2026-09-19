@@ -9,11 +9,15 @@ test('catalog groups repository activity, filters and pages without omissions', 
     const response = await app.request(`/api/v1/reports?${query}`, 'GET', undefined, '', headers);
     assert.equal(response.status, 200); return response.json();
   };
-  const inputs = [fixture({ repository: 'yearn/a', scan_type: 'ai-pr', pr_number: 12 }), fixture({ repository: 'yearn/b', status: 'failed' }), fixture({ repository: 'yearn/a', scan_type: 'custom-type' }), fixture({ repository: 'yearn/c', status: 'partial' })];
+  const inputs = [fixture({ repository: 'yearn/a', scan_type: 'ai-pr', pr_number: 12 }), fixture({ repository: 'yearn/b', status: 'failed' }), fixture({ repository: 'yearn/a', scan_type: 'custom-type' }), fixture({ repository: 'yearn/c', status: 'running', finished_at: null, report_url: null })];
   const ids = [];
   for (const input of inputs) ids.push((await (await app.request('/api/v1/upload', 'POST', input)).json()).id);
   const all = await read('');
   assert.deepEqual(all.reports.map(x => x.id), [ids[3], ids[2], ids[0], ids[1]]);
+  assert.deepEqual(all.repositories, ['yearn/a', 'yearn/b', 'yearn/c']);
+  assert.deepEqual((await read('q=missing&limit=1')).repositories, all.repositories);
+  assert.equal((await read('status=running')).reports[0].finished_at, null);
+  assert.equal((await read('status=running')).reports[0].report_url, null);
   assert.equal(all.reports[0].severity_counts.info, null);
   assert.equal(all.reports[0].severity_counts.critical, 0);
   assert.equal(all.reports[0].owner_fingerprint, undefined);
@@ -33,7 +37,7 @@ test('catalog groups repository activity, filters and pages without omissions', 
   } while (cursor);
   assert.deepEqual(paged, all.reports.map(x => x.id));
   const first = await read('limit=1');
-  for (const query of ['limit=0', 'limit=101', 'limit=1.5', 'status=wrong', 'q=x&q=y', 'unknown=1', 'cursor=bad', `limit=1&status=failed&cursor=${first.next_cursor}`]) {
+  for (const query of ['limit=0', 'limit=101', 'limit=1.5', 'status=wrong', 'status=partial', 'q=x&q=y', 'unknown=1', 'cursor=bad', `limit=1&status=failed&cursor=${first.next_cursor}`]) {
     assert.equal((await app.request(`/api/v1/reports?${query}`, 'GET', undefined, '', headers)).status, 400, query);
   }
   await app.request(`/api/v1/upload/${ids[1]}`, 'PUT', { ...inputs[1], status: 'completed' });
@@ -53,7 +57,7 @@ test('HTML, scripts and styles are private and submitted text stays inert', asyn
   const assets = [...html.matchAll(/(?:src|href)="(\/_next\/static\/[^"]+)"/g)].map(match => match[1]);
   assert.ok(assets.length > 0, 'SSR document references built assets');
   assert.ok(html.includes('yearn/vaults'), 'initial data is server rendered');
-  for (const path of ['/', ...assets]) {
+  for (const path of ['/', '/yearn-symbol.svg', ...assets]) {
     assert.equal((await app.request(path)).status, 401);
     const response = await app.request(path, 'GET', undefined, '', headers);
     assert.equal(response.status, 200, path);

@@ -20,7 +20,7 @@ test('create, ownership, canonical retries and immutable create identity', async
   const before = await app.db.prepare('SELECT * FROM reports').first();
   const same = await (await app.request(path, 'PUT', input)).json();
   assert.equal(same.changed, false); assert.equal(same.updated_at, created.updated_at);
-  const changed = await (await app.request(path, 'PUT', { ...input, repository: 'yearn/another', status: 'partial' })).json();
+  const changed = await (await app.request(path, 'PUT', { ...input, repository: 'yearn/another', status: 'running' })).json();
   assert.equal(changed.changed, true); assert.ok(changed.updated_at > created.updated_at);
   assert.equal(changed.created_at, created.created_at);
   const after = await app.db.prepare('SELECT * FROM reports').first();
@@ -28,7 +28,7 @@ test('create, ownership, canonical retries and immutable create identity', async
   assert.equal(after.client, 'first'); assert.equal(after.repository, 'yearn/another');
   assert.equal(after.activity_seq, before.activity_seq + 1);
   assert.equal((await app.request('/api/v1/upload', 'POST', input)).status, 200);
-  assert.equal((await app.request('/api/v1/upload', 'POST', { ...input, status: 'partial' })).status, 409);
+  assert.equal((await app.request('/api/v1/upload', 'POST', { ...input, status: 'running' })).status, 409);
   assert.equal((await app.request('/api/v1/upload', 'POST', input, keyB)).status, 201);
   assert.equal(app.outbound(), 0, 'report URLs are never fetched');
 });
@@ -74,7 +74,7 @@ test('schema rejects invalid and unsafe submissions before writes', async t => {
   for (const override of [
     { schema_version: 2 }, { run_id: '' }, { repository: '../evil' }, { commit_sha: 'abcd' },
     { scan_type: 'ai-pr' }, { scan_type: 'AI' }, { pr_number: 0 }, { extra: true },
-    { scanner: { name: '', version: '1' } }, { status: 'done' },
+    { scanner: { name: '', version: '1' } }, { status: 'done' }, { status: 'partial' }, { pr_title: '' }, { pr_title: 1 }, { pr_url: 'javascript:alert(1)' }, { pr_url: 'https://u:p@example.com' },
     { started_at: '2026-02-30T10:00:00Z' }, { finished_at: '2026-09-15T10:00:00Z' },
     { severity_counts: { critical: 0 } }, { severity_counts: { ...fixture().severity_counts, info: -1 } },
     ...['javascript:alert(1)', 'http://example.com', 'https://u:p@example.com', 'https:\\example.com', ' https://example.com', 'https://example.com/\n'].map(report_url => ({ report_url })),
@@ -98,7 +98,7 @@ test('concurrent creates and updates remain atomic and idempotent', async t => {
   const bodies = await Promise.all(responses.map(x => x.json()));
   assert.equal(new Set(bodies.map(x => x.id)).size, 1);
   const path = `/api/v1/upload/${bodies[0].id}`;
-  const updates = await Promise.all(Array.from({ length: 12 }, () => app.request(path, 'PUT', { ...input, status: 'partial' }).then(x => x.json())));
+  const updates = await Promise.all(Array.from({ length: 12 }, () => app.request(path, 'PUT', { ...input, status: 'running' }).then(x => x.json())));
   assert.equal(updates.filter(x => x.changed).length, 1);
   assert.equal((await app.db.prepare('SELECT sequence FROM activity_clock').first()).sequence, 2);
   const conflict = fixture();
@@ -139,4 +139,25 @@ test('loopback aliases work locally without weakening authentication or producti
   for (const url of ['http://localhost:3000', 'http://127.0.0.1:3000', 'https://localhost', 'https://preview.yearn.dev']) {
     assert.equal((await production.mf.dispatchFetch(`${url}/api/v1/reports`, { headers: productionHeaders })).status, 421, url);
   }
+});
+
+
+test('running and nullable results accept PR metadata without state-dependent requirements', async t => {
+  const app = await setup(); t.after(() => app.mf.dispose());
+  const input = fixture({ status: 'running', finished_at: null, report_url: null,
+    pr_title: '<b>Fix accounting</b>', pr_url: 'https://github.com/yearn/vaults/pull/42', pr_number: 42,
+    severity_counts: { critical: null, high: null, medium: null, low: null, info: null } });
+  const response = await app.request('/api/v1/upload', 'POST', input);
+  assert.equal(response.status, 201);
+  const { id } = await response.json();
+  for (const status of ['completed', 'failed', 'running']) {
+    assert.equal((await app.request(`/api/v1/upload/${id}`, 'PUT', { ...input, status })).status, 200);
+  }
+  const read = await app.request('/api/v1/reports', 'GET', undefined, '', { 'Cf-Access-Jwt-Assertion': await app.token() });
+  const { reports } = await read.json();
+  assert.equal(reports[0].pr_title, input.pr_title);
+  assert.equal(reports[0].pr_url, input.pr_url);
+  assert.equal(reports[0].finished_at, null);
+  assert.equal(reports[0].report_url, null);
+  assert.equal((await app.request(`/api/v1/upload/${id}`, 'PUT', { ...input, status: 'running', finished_at: fixture().finished_at, report_url: fixture().report_url })).status, 200);
 });

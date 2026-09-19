@@ -9,7 +9,7 @@ interface CatalogRow extends ReportRow { repository: string; repo_seq: number }
 interface Cursor { v: number; query: string; repo_seq: number; repository: string; seq: number; id: string }
 const fail = (): never => { throw new HttpError(400, 'Invalid query or cursor'); };
 
-export interface Catalog { schema_version: 1; reports: ReturnType<typeof publicReport>[]; next_cursor: string | null }
+export interface Catalog { schema_version: 1; repositories: string[]; reports: ReturnType<typeof publicReport>[]; next_cursor: string | null }
 
 export async function listReports(url: URL, env: Env): Promise<Response> {
   return json(await getReports(url, env));
@@ -51,10 +51,11 @@ export async function getReports(url: URL, env: Env): Promise<Catalog> {
     ) SELECT r.*, a.repo_seq FROM reports r JOIN activity a ON a.repository = r.repository
     ${conditions.length ? `WHERE ${conditions.join(' AND ')}` : ''}
     ORDER BY a.repo_seq DESC, r.repository ASC, r.activity_seq DESC, r.id DESC LIMIT ?`).bind(...values).all<CatalogRow>();
+  const repositories = await env.DB.prepare('SELECT DISTINCT repository FROM reports ORDER BY repository ASC').all<{ repository: string }>();
   const rows = result.results.slice(0, limit);
   const last = rows.at(-1);
   const nextCursor = result.results.length > limit && last
     ? btoa(JSON.stringify({ v: 1, query, repo_seq: last.repo_seq, repository: last.repository, seq: last.activity_seq, id: last.id })).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_')
     : null;
-  return { schema_version: 1, reports: rows.map(publicReport), next_cursor: nextCursor };
+  return { schema_version: 1, repositories: repositories.results.map(row => row.repository), reports: rows.map(publicReport), next_cursor: nextCursor };
 }

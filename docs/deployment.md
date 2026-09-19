@@ -126,7 +126,7 @@ Use synthetic metadata and a harmless externally hosted HTTPS report first:
 3. Create a synthetic record via CLI. Confirm `201`, its ID/update URL, and its
    presence in the member's table. The publishing key alone must not read the
    catalog. Replay the create and confirm `200` with the same ID.
-4. Change its metadata and PUT with the owning key. Refresh the table and check
+4. Change its metadata and PUT with the owning key. Reload the page and check
    ordering/activity. Repeat that PUT and confirm `changed: false`.
 5. Open its report link. Confirm it reaches the client's URL and that the
    destination enforces its own login/access requirements.

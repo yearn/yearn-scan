@@ -11,7 +11,7 @@ test('CLI validates and creates/updates through the Worker', async t => {
   const app = await setup(); t.after(() => app.mf.dispose());
   const dir = await mkdtemp(join(tmpdir(), 'yearn-scan-cli-')); t.after(() => rm(dir, { recursive: true }));
   const file = join(dir, 'report.json');
-  const input = fixture();
+  const input = fixture({ status: 'running', finished_at: null, report_url: null, pr_title: 'Review this PR', pr_url: 'https://github.com/yearn/vaults/pull/42' });
   await writeFile(file, JSON.stringify(input));
   let requests = 0;
   const fetcher = (url, init) => { requests++; assert.equal(init.redirect, 'error'); return app.mf.dispatchFetch(url, { ...init, redirect: 'manual' }); };
@@ -19,7 +19,7 @@ test('CLI validates and creates/updates through the Worker', async t => {
   const created = await upload(['create', file], env, fetcher);
   assert.equal(created.created, true);
   assert.equal((await upload(['create', file], env, fetcher)).created, false);
-  await writeFile(file, JSON.stringify({ ...input, status: 'partial' }));
+  await writeFile(file, JSON.stringify({ ...input, status: 'completed', finished_at: fixture().finished_at, report_url: fixture().report_url }));
   assert.equal((await upload(['update', created.id, file], env, fetcher)).changed, true);
   const before = requests;
   await assert.rejects(() => upload(['create', file], env, async () => { requests++; return new Response('', { status: 503 }); }), /no retry/);

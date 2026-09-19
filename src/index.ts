@@ -17,7 +17,7 @@ export default {
       const method = upload ? (update ? 'PUT' : 'POST') : 'GET';
       if (!upload) await authenticateReader(request, env);
       if (request.method !== method) return json({ error: 'Method not allowed' }, 405, { Allow: method });
-      if (url.pathname.startsWith('/_next/static/')) return env.ASSETS.fetch(request);
+      if (url.pathname.startsWith('/_next/static/') || url.pathname === '/yearn-symbol.svg') return env.ASSETS.fetch(request);
       const headers = new Headers(request.headers);
       // Never trust a caller-supplied CSP nonce.
       headers.set('Content-Security-Policy', contentSecurityPolicy(nonce));
