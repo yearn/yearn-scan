@@ -10,13 +10,27 @@ export function json(value: unknown, status = 200, headers?: HeadersInit): Respo
   return Response.json(value, { status, headers });
 }
 
-export function privateResponse(response: Response): Response {
+export function contentSecurityPolicy(nonce?: string): string {
+  return `default-src 'none'; script-src 'self'${nonce ? ` 'nonce-${nonce}'` : ''}; style-src 'self'${nonce ? ` 'nonce-${nonce}'` : ''}; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'`;
+}
+
+export async function apiResponse(run: () => Promise<Response>): Promise<Response> {
+  try { return await run(); }
+  catch (error) {
+    if (error instanceof HttpError) return json({ error: error.message }, error.status);
+    // Never expose request bodies, credentials, SQL errors or stack traces.
+    return json({ error: 'Service unavailable' }, 503);
+  }
+}
+
+export function privateResponse(response: Response, nonce?: string): Response {
+  response = new Response(response.body, response);
   response.headers.set('Cache-Control', 'private, no-store');
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('Referrer-Policy', 'no-referrer');
   response.headers.set('X-Frame-Options', 'DENY');
   response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
-  response.headers.set('Content-Security-Policy', "default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");
+  response.headers.set('Content-Security-Policy', contentSecurityPolicy(nonce));
   return response;
 }
 

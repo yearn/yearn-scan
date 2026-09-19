@@ -53,7 +53,7 @@ async function signingKeys(issuer: string, kid: string): Promise<SigningKey[]> {
   try { return await task; } finally { pending.delete(issuer); }
 }
 
-function decode(segment: string): Uint8Array {
+function decode(segment: string): Uint8Array<ArrayBuffer> {
   if (!/^[A-Za-z0-9_-]+$/.test(segment)) throw new Error('Invalid encoding');
   return Uint8Array.from(atob(segment.replace(/-/g, '+').replace(/_/g, '/')), x => x.charCodeAt(0));
 }

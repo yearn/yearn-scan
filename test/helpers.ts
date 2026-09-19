@@ -1,5 +1,5 @@
 import { Miniflare } from 'miniflare';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 
 export const origin = 'https://scan.yearn.dev';
 export const keyA = `first__${'a'.repeat(43)}`;
@@ -31,8 +31,11 @@ export async function signingFixture() {
 export async function setup(options = {}) {
   const signing = await signingFixture();
   let outbound = 0;
+  const files = (await readdir('dist/server', { recursive: true })).filter(file => file.endsWith('.js') && file !== 'index.js');
   const mf = new Miniflare({
-    modules: true, modulesRules: [{ type: 'Text', include: ['**/*.html', '**/*.css', '**/*-client.js'], fallthrough: true }], scriptPath: 'dist/index.js', compatibilityDate: '2026-05-15',
+    modules: ['index.js', ...files].map(file => ({ type: 'ESModule', path: `dist/server/${file}` })),
+    modulesRoot: 'dist/server', compatibilityDate: '2026-05-15', compatibilityFlags: ['nodejs_compat'],
+    assets: { directory: 'dist/client', binding: 'ASSETS', routerConfig: { has_user_worker: true, invoke_user_worker_ahead_of_assets: true } },
     bindings: { APP_ORIGIN: origin, ACCESS_ISSUER: issuer, ACCESS_AUD: audience, PUBLISH_KEYS: `${keyA},${keyB}`, ...options },
     d1Databases: ['DB'],
     outboundService: async (request) => {
@@ -41,6 +44,7 @@ export async function setup(options = {}) {
       return Response.json({ keys: [signing.jwk] });
     },
   });
+  try {
   const db = await mf.getD1Database('DB');
   const migration = await readFile('migrations/0001_reports.sql', 'utf8');
   const statements = migration.split(/;(?=\s*(?:CREATE|INSERT|$))/).map(x => x.trim()).filter(Boolean);
@@ -50,4 +54,5 @@ export async function setup(options = {}) {
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
   return { mf, db, request, ...signing, outbound: () => outbound };
+  } catch (error) { await mf.dispose(); throw error; }
 }

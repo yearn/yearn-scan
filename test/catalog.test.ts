@@ -49,10 +49,14 @@ test('HTML, scripts and styles are private and submitted text stays inert', asyn
   await app.request('/api/v1/upload', 'POST', fixture({ scanner: { name: hostile, version: '</script><script>alert(1)</script>' }, ref: hostile }));
   const catalog = await (await app.request('/api/v1/reports', 'GET', undefined, '', headers)).json();
   assert.equal(catalog.reports[0].scanner.name, hostile);
-  for (const path of ['/', '/app.js', '/styles.css']) {
+  const html = await (await app.request('/', 'GET', undefined, '', headers)).text();
+  const assets = [...html.matchAll(/(?:src|href)="(\/_next\/static\/[^"]+)"/g)].map(match => match[1]);
+  assert.ok(assets.length > 0, 'SSR document references built assets');
+  assert.ok(html.includes('yearn/vaults'), 'initial data is server rendered');
+  for (const path of ['/', ...assets]) {
     assert.equal((await app.request(path)).status, 401);
     const response = await app.request(path, 'GET', undefined, '', headers);
-    assert.equal(response.status, 200);
+    assert.equal(response.status, 200, path);
     assert.equal(response.headers.get('Cache-Control'), 'private, no-store');
     assert.match(response.headers.get('Content-Security-Policy'), /frame-ancestors 'none'/);
     assert.ok(!(await response.text()).includes(hostile));

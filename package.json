@@ -8,9 +8,9 @@
     "node": ">=24"
   },
   "scripts": {
-    "dev": "wrangler dev",
+    "dev": "vite",
     "demo": "pnpm build && node scripts/demo.mjs",
-    "build": "wrangler deploy --dry-run --outdir dist",
+    "build": "vite build",
     "typecheck": "tsc --noEmit",
     "test": "pnpm build && node --test test/*.test.ts",
     "test:browser": "pnpm build && node --test test/browser.smoke.ts",
@@ -20,11 +20,25 @@
     "delete-report": "node scripts/delete-report.mjs"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "4.20260702.1",
+    "@cloudflare/vite-plugin": "1.54.8",
+    "@cloudflare/workers-types": "5.20260911.1",
+    "@tailwindcss/vite": "4.3.3",
     "@types/node": "24.13.4",
-    "miniflare": "4.20260515.0",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.1",
+    "@vitejs/plugin-rsc": "0.5.34",
+    "miniflare": "4.20260730.0",
     "playwright": "1.63.0",
+    "tailwindcss": "4.3.3",
     "typescript": "5.9.3",
-    "wrangler": "4.92.0"
+    "vite": "8.3.0",
+    "wrangler": "4.131.1"
+  },
+  "dependencies": {
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-server-dom-webpack": "19.3.0",
+    "vinext": "1.0.0-beta.9"
   }
 }

@@ -1,6 +1,7 @@
 import type { Publisher } from './auth.ts';
 import { HttpError, json, readJson } from './http.ts';
 import { validateSubmission } from './schema.ts';
+import type { Submission } from './schema.ts';
 import type { Env } from './env.ts';
 
 export interface ReportRow {
@@ -8,7 +9,9 @@ export interface ReportRow {
   create_payload: string; created_at: number; updated_at: number; activity_seq: number;
 }
 
-export function publicReport(row: ReportRow) {
+export type PublicReport = Submission & { id: string; client: string; created_at: string; updated_at: string };
+
+export function publicReport(row: ReportRow): PublicReport {
   return { ...JSON.parse(row.payload), id: row.id, client: row.client,
     created_at: new Date(row.created_at).toISOString(), updated_at: new Date(row.updated_at).toISOString() };
 }

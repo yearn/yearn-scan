@@ -9,7 +9,13 @@ interface CatalogRow extends ReportRow { repository: string; repo_seq: number }
 interface Cursor { v: number; query: string; repo_seq: number; repository: string; seq: number; id: string }
 const fail = (): never => { throw new HttpError(400, 'Invalid query or cursor'); };
 
+export interface Catalog { schema_version: 1; reports: ReturnType<typeof publicReport>[]; next_cursor: string | null }
+
 export async function listReports(url: URL, env: Env): Promise<Response> {
+  return json(await getReports(url, env));
+}
+
+export async function getReports(url: URL, env: Env): Promise<Catalog> {
   const params = url.searchParams;
   for (const key of params.keys()) if (!['q', 'scan_type', 'status', 'limit', 'cursor'].includes(key) || params.getAll(key).length !== 1) fail();
   const q = (params.get('q') || '').trim().toLowerCase();
@@ -50,5 +56,5 @@ export async function listReports(url: URL, env: Env): Promise<Response> {
   const nextCursor = result.results.length > limit && last
     ? btoa(JSON.stringify({ v: 1, query, repo_seq: last.repo_seq, repository: last.repository, seq: last.activity_seq, id: last.id })).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_')
     : null;
-  return json({ schema_version: 1, reports: rows.map(publicReport), next_cursor: nextCursor });
+  return { schema_version: 1, reports: rows.map(publicReport), next_cursor: nextCursor };
 }

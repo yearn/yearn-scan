@@ -5,16 +5,24 @@
   "compatibility_date": "2026-05-15",
   "workers_dev": false,
   "preview_urls": false,
-  "rules": [{ "type": "Text", "globs": ["**/*.html", "**/*.css", "**/ui/client.js"], "fallthrough": true }],
   "vars": {
-    "APP_ORIGIN": "http://localhost:8787",
+    "APP_ORIGIN": "http://127.0.0.1:3000",
     "ACCESS_ISSUER": "https://configure-me.cloudflareaccess.com",
     "ACCESS_AUD": "configure-me"
   },
-  "d1_databases": [{
-    "binding": "DB",
-    "database_name": "yearn-scan",
-    "database_id": "00000000-0000-0000-0000-000000000000",
-    "migrations_dir": "migrations"
-  }]
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "yearn-scan",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "assets": {
+    "binding": "ASSETS",
+    "run_worker_first": true
+  }
 }
