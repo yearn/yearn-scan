@@ -32,7 +32,9 @@ pnpm db:migrate
 pnpm dev
 ```
 
-Use `http://127.0.0.1:3000` (the configured origin). Stop the demo first; both
+Use `http://localhost:3000` or `http://127.0.0.1:3000`. Loopback HTTP aliases
+are accepted on the configured port; production still requires its exact origin.
+Stop the demo first; both
 commands use port 3000 and fail if it is occupied. Local `.dev.vars` and D1 state
 are ignored by Git. `PUBLISH_KEYS` uses the same format as production. Reads on
 `pnpm dev` remain closed until valid Access issuer/audience/JWTs are configured;

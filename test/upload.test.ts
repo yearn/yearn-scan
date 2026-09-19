@@ -120,3 +120,23 @@ test('database errors roll back the mutation and do not retry', async t => {
   assert.equal((await app.request(`/api/v1/upload/${created.id}`, 'PUT', { ...input, status: 'failed' })).status, 503);
   assert.deepEqual(await app.db.prepare('SELECT * FROM reports').first(), before);
 });
+
+test('loopback aliases work locally without weakening authentication or production origins', async t => {
+  const local = await setup({ APP_ORIGIN: 'http://127.0.0.1:3000' });
+  t.after(() => local.mf.dispose());
+  const headers = { 'Cf-Access-Jwt-Assertion': await local.token() };
+  for (const host of ['localhost', '127.0.0.1', '[::1]']) {
+    const url = `http://${host}:3000/api/v1/reports`;
+    assert.equal((await local.mf.dispatchFetch(url, { headers })).status, 200);
+    assert.equal((await local.mf.dispatchFetch(url)).status, 401, 'aliases still require Access');
+  }
+  for (const url of ['http://localhost:3001', 'https://localhost:3000', 'http://localhost.example:3000', 'http://192.168.1.2:3000']) {
+    assert.equal((await local.mf.dispatchFetch(`${url}/api/v1/reports`, { headers })).status, 421, url);
+  }
+  const production = await setup();
+  t.after(() => production.mf.dispose());
+  const productionHeaders = { 'Cf-Access-Jwt-Assertion': await production.token() };
+  for (const url of ['http://localhost:3000', 'http://127.0.0.1:3000', 'https://localhost', 'https://preview.yearn.dev']) {
+    assert.equal((await production.mf.dispatchFetch(`${url}/api/v1/reports`, { headers: productionHeaders })).status, 421, url);
+  }
+});

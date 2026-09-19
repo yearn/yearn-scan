@@ -1,6 +1,7 @@
 import handler from 'vinext/server/fetch-handler';
 import type { Env } from './env.ts';
 import { authenticateReader } from './auth.ts';
+import { isAllowedOrigin } from './origin.ts';
 import { apiResponse, contentSecurityPolicy, HttpError, json, privateResponse } from './http.ts';
 
 // The outer Worker protects every framework route, RSC response and asset.
@@ -10,7 +11,7 @@ export default {
     const nonce = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(24))));
     const response = await apiResponse(async () => {
       const url = new URL(request.url);
-      if (url.origin !== env.APP_ORIGIN) throw new HttpError(421, 'Unrecognized origin');
+      if (!isAllowedOrigin(url, env.APP_ORIGIN)) throw new HttpError(421, 'Unrecognized origin');
       const update = /^\/api\/v1\/upload\/[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(url.pathname);
       const upload = url.pathname === '/api/v1/upload' || update;
       const method = upload ? (update ? 'PUT' : 'POST') : 'GET';
