@@ -17,8 +17,8 @@ release-age policy. vinext beta.9 is the latest release meeting that cutoff.
 
 Bundlephobia could not build vinext. Its React/React DOM root-entry estimates
 (8.0/4.0 kB minified) omit the client renderer and RSC runtime and are not useful
-as application totals. The initial production client build is about 443 kB of
-JavaScript, 135 kB summed gzip, plus CSS. This is an intentional size increase
+as application totals. The completed production client build contains 452 kB of JavaScript
+(137 kB summed gzip) and 12.3 kB of CSS (3.5 kB gzip). This is an intentional size increase
 for the approved framework migration; measure the final application build when
 updating these dependencies. The server bundle includes separate RSC and SSR
 chunks and is not sent to browsers.

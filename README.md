@@ -2,7 +2,8 @@
 
 A private catalog of scan metadata and externally hosted report links, designed
 for `scan.yearn.dev`. One Cloudflare Worker serves the UI and API; D1 stores the
-records. Clients run their own scanners and host their own reports. There are no
+records. The UI uses vinext App Router, React Server Components and Tailwind CSS.
+Clients run their own scanners and host their own reports. There are no
 file uploads, report rendering, R2 buckets, or background jobs.
 
 Production deployment, Cloudflare Access, and domain attachment are a separate
@@ -23,7 +24,7 @@ Open `http://127.0.0.1:3000` for a complete local table with synthetic data.
 The demo binds only to loopback and discards data on exit. Its local proxy signs
 test Access JWTs; the production Worker contains no authentication bypass.
 
-For local publishing with Wrangler:
+For Vite development with hot reload and persistent local D1:
 
 ```sh
 pnpm db:migrate
@@ -31,10 +32,13 @@ pnpm db:migrate
 pnpm dev
 ```
 
-Use `http://localhost:8787` (the configured origin). Local `.dev.vars` and D1 state
+Use `http://127.0.0.1:3000` (the configured origin). Stop the demo first; both
+commands use port 3000 and fail if it is occupied. Local `.dev.vars` and D1 state
 are ignored by Git. `PUBLISH_KEYS` uses the same format as production. Reads on
 `pnpm dev` remain closed until valid Access issuer/audience/JWTs are configured;
-use `pnpm demo` for an isolated UI preview.
+use `pnpm demo` for an isolated UI preview. The demo runs the production build
+with three synthetic reports and local test JWTs; restart it after code changes.
+Vite is bound to loopback; its development tooling is not a production server.
 
 ```sh
 pnpm exec playwright install chromium
@@ -46,6 +50,28 @@ An existing compatible Chromium can be selected using
 download is unavailable. The smoke test signs local JWTs, runs the real Worker
 and D1, and intercepts the external report destination. It never contacts
 production or changes Access configuration.
+
+## App structure
+
+- `app/page.tsx` reads D1 on the server and passes initial results to the table.
+- `app/catalog-table.tsx` is the interactive React client component.
+- `app/api/v1/reports/route.ts`, `app/api/v1/upload/route.ts` and
+  `app/api/v1/upload/[id]/route.ts` expose the existing JSON contract.
+- `src/index.ts` wraps vinext with origin, method and Access checks, including
+  RSC requests and generated assets. Only exact upload routes use publishing keys.
+- `src/` holds validation, authentication and D1 operations; `migrations/` is
+  unchanged by the framework migration.
+
+To add an endpoint, create `app/api/whatever/route.ts` and export its method
+handler. The outer Worker permits only authenticated reader GETs outside the
+existing upload routes; intentionally change that boundary for any new method.
+The initial page queries D1 directly rather than making an internal API request.
+It is always rendered per request; neither page nor API data enters a shared
+cache. React escapes submitted text; a fresh CSP nonce permits hydration scripts.
+
+`pnpm build` creates `dist/server/` (Worker/RSC/SSR code and generated Wrangler
+configuration) and `dist/client/` (browser JS/CSS). Test helpers execute those
+artifacts with real workerd/D1 and keep assets behind the Worker boundary.
 
 ## Publish a report
 

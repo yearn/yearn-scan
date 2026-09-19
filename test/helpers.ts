@@ -30,12 +30,13 @@ export async function signingFixture() {
 
 export async function setup(options = {}) {
   const signing = await signingFixture();
+  const config = JSON.parse(await readFile('dist/server/wrangler.json', 'utf8'));
   let outbound = 0;
   const files = (await readdir('dist/server', { recursive: true })).filter(file => file.endsWith('.js') && file !== 'index.js');
   const mf = new Miniflare({
     modules: ['index.js', ...files].map(file => ({ type: 'ESModule', path: `dist/server/${file}` })),
-    modulesRoot: 'dist/server', compatibilityDate: '2026-05-15', compatibilityFlags: ['nodejs_compat'],
-    assets: { directory: 'dist/client', binding: 'ASSETS', routerConfig: { has_user_worker: true, invoke_user_worker_ahead_of_assets: true } },
+    modulesRoot: 'dist/server', compatibilityDate: config.compatibility_date, compatibilityFlags: config.compatibility_flags,
+    assets: { directory: 'dist/client', binding: 'ASSETS', routerConfig: { has_user_worker: true, invoke_user_worker_ahead_of_assets: config.assets.run_worker_first } },
     bindings: { APP_ORIGIN: origin, ACCESS_ISSUER: issuer, ACCESS_AUD: audience, PUBLISH_KEYS: `${keyA},${keyB}`, ...options },
     d1Databases: ['DB'],
     outboundService: async (request) => {
@@ -45,14 +46,14 @@ export async function setup(options = {}) {
     },
   });
   try {
-  const db = await mf.getD1Database('DB');
-  const migration = await readFile('migrations/0001_reports.sql', 'utf8');
-  const statements = migration.split(/;(?=\s*(?:CREATE|INSERT|$))/).map(x => x.trim()).filter(Boolean);
-  await db.batch(statements.map(x => db.prepare(x)));
-  const request = (path, method = 'GET', body?, key = keyA, headers = {}) => mf.dispatchFetch(`${origin}${path}`, {
-    method, headers: { ...(key ? { Authorization: `Bearer ${key}` } : {}), ...(body === undefined ? {} : { 'Content-Type': 'application/json' }), ...headers },
-    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
-  });
-  return { mf, db, request, ...signing, outbound: () => outbound };
+    const db = await mf.getD1Database('DB');
+    const migration = await readFile('migrations/0001_reports.sql', 'utf8');
+    const statements = migration.split(/;(?=\s*(?:CREATE|INSERT|$))/).map(x => x.trim()).filter(Boolean);
+    await db.batch(statements.map(x => db.prepare(x)));
+    const request = (path, method = 'GET', body?, key = keyA, headers = {}) => mf.dispatchFetch(`${origin}${path}`, {
+      method, headers: { ...(key ? { Authorization: `Bearer ${key}` } : {}), ...(body === undefined ? {} : { 'Content-Type': 'application/json' }), ...headers },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    });
+    return { mf, db, request, ...signing, outbound: () => outbound };
   } catch (error) { await mf.dispose(); throw error; }
 }

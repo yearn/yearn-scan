@@ -18,12 +18,7 @@
     "skipLibCheck": true,
     "allowImportingTsExtensions": true,
     "noUncheckedIndexedAccess": true,
-    "jsx": "react-jsx",
-    "paths": {
-      "next/headers": [
-        "./node_modules/vinext/dist/shims/headers.js"
-      ]
-    }
+    "jsx": "react-jsx"
   },
   "include": [
     "src/**/*.ts",

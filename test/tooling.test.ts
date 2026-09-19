@@ -49,6 +49,9 @@ test('local and production configuration disable alternate URLs', async () => {
     const config = JSON.parse(await readFile(path, 'utf8'));
     assert.equal(config.workers_dev, false);
     assert.equal(config.preview_urls, false);
+    assert.equal(config.main, 'src/index.ts');
+    assert.equal(config.assets.binding, 'ASSETS');
+    assert.equal(config.assets.run_worker_first, true, 'assets cannot bypass authentication');
     assert.equal(config.d1_databases.length, 1);
     assert.equal(config.r2_buckets, undefined);
   }

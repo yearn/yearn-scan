@@ -49,12 +49,20 @@ cp wrangler.production.example.jsonc wrangler.production.jsonc
 Edit the ignored production file to set `account_id`, D1 `database_id`,
 `ACCESS_ISSUER`, and `ACCESS_AUD`. Keep `APP_ORIGIN` exactly
 `https://scan.yearn.dev`, without a trailing slash. Keep `workers_dev: false`
-and `preview_urls: false`. Do not deploy the placeholder/local configuration.
+and `preview_urls: false`. Keep `assets.run_worker_first: true`: generated
+assets must pass through Worker authentication. Do not deploy the placeholder/local configuration.
 
 ```sh
 pnpm exec wrangler d1 migrations apply DB --remote --config wrangler.production.jsonc
-pnpm exec wrangler deploy --dry-run --config wrangler.production.jsonc
+WRANGLER_CONFIG=wrangler.production.jsonc pnpm build
+pnpm exec wrangler deploy --dry-run --config dist/server/wrangler.json
 ```
+
+Build with the production source configuration before deploying. Vite emits
+the deployable Worker, all server modules, client assets, and a generated
+`dist/server/wrangler.json`. Deploy that generated configuration, not the
+unbundled TypeScript entry. No vinext deployment CLI or provisioning command is
+run by our build. Keep the generated output and `.wrangler` state out of Git.
 
 The initial migration creates reports, generated search columns, indexes, and
 an activity counter with transactional triggers. There are no retention jobs.
@@ -93,7 +101,8 @@ After the Access policies are configured, use the production template's custom
 domain route and deploy:
 
 ```sh
-pnpm exec wrangler deploy --config wrangler.production.jsonc
+WRANGLER_CONFIG=wrangler.production.jsonc pnpm build
+pnpm exec wrangler deploy --config dist/server/wrangler.json
 ```
 
 The `yearn.dev` zone must already be in the correct Cloudflare account. A Worker
@@ -110,6 +119,8 @@ Use synthetic metadata and a harmless externally hosted HTTPS report first:
 
 1. In a logged-out browser, `/` and `/api/v1/reports` must require Access login.
    A nonmember GitHub account must be denied; a `yearn` member must see the table.
+   Check a generated `/_next/static/` asset and an RSC request too: neither may
+   bypass Access, and Worker responses must remain private and `no-store`.
 2. Without a publishing key, POST to the exact upload route must reach Worker
    JSON `401` (not an interactive login redirect). Wrong methods return `405`.
 3. Create a synthetic record via CLI. Confirm `201`, its ID/update URL, and its
