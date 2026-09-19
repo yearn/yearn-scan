@@ -10,8 +10,10 @@ test('browser: create → private table → update → external report', { timeo
   context.setDefaultTimeout(10_000);
   const token = await app.token();
   const browserErrors = [];
+  let catalogRequests = 0;
   await context.route('**/*', async route => {
     const request = route.request();
+    if (request.url().startsWith(origin + '/api/v1/reports')) catalogRequests++;
     if (!request.url().startsWith(origin + '/')) {
       assert.equal(request.url(), 'https://reports.example/private/scan.html');
       assert.equal(request.headers().referer, undefined);
@@ -26,9 +28,13 @@ test('browser: create → private table → update → external report', { timeo
   const created = await (await app.request('/api/v1/upload', 'POST', input)).json();
   const page = await context.newPage();
   page.on('pageerror', error => browserErrors.push(error.message));
-  await page.goto(origin);
+  page.on('console', message => { if (message.type() === 'error') browserErrors.push(message.text()); });
+  const firstResponse = await page.goto(origin);
+  const initialHtml = await firstResponse.text();
+  assert.ok(initialHtml.includes('yearn/tokenized-strategy'), 'first response includes D1 data');
   await page.getByRole('status').filter({ hasText: '1 scan on this page' }).waitFor();
   assert.equal(await page.locator('tbody tr').count(), 1);
+  assert.equal(catalogRequests, 0, 'initial hydration needs no catalog fetch');
   assert.ok((await page.locator('tbody').innerText()).includes(input.scanner.name));
   assert.equal(await page.locator('tbody img, tbody script').count(), 0);
   assert.equal(await page.evaluate(() => window.pwned), undefined);

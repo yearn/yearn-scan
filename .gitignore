@@ -5,3 +5,5 @@ dist/
 .env*
 wrangler.production.jsonc
 *.log
+.next/
+next-env.d.ts

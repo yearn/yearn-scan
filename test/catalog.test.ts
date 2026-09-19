@@ -63,3 +63,39 @@ test('HTML, scripts and styles are private and submitted text stays inert', asyn
   }
   assert.equal((await app.request('/api/v1/reports', 'POST', {}, '', headers)).status, 405);
 });
+
+test('SSR and RSC stay private, uncached and reflect accepted updates', async t => {
+  const app = await setup(); t.after(() => app.mf.dispose());
+  const headers = { 'Cf-Access-Jwt-Assertion': await app.token() };
+  const input = fixture({ repository: 'yearn/ssr-test', scanner: { name: 'Original scanner', version: '1.0' } });
+  const { id } = await (await app.request('/api/v1/upload', 'POST', input)).json();
+  const read = (path = '/', extra = {}) => app.request(path, 'GET', undefined, '', { ...headers, ...extra });
+  const first = await read('/', { 'Content-Security-Policy': "script-src 'nonce-attacker'" });
+  const firstHtml = await first.text();
+  assert.ok(firstHtml.includes('Original scanner'));
+  assert.ok(!firstHtml.includes('owner_fingerprint'));
+  const nonce = first.headers.get('Content-Security-Policy').match(/'nonce-([^']+)'/)[1];
+  assert.notEqual(nonce, 'attacker');
+  assert.ok(firstHtml.includes(`nonce="${nonce}"`), 'SSR scripts use server nonce');
+  assert.ok(!first.headers.get('Content-Security-Policy').includes('unsafe-inline'));
+  for (const path of ['/?_rsc=test', '/api/v1/reports', '/missing', '/_next/static/missing.js', '/api/v1/upload/not-a-uuid', '/api/v1/upload/']) {
+    assert.equal((await app.request(path, 'GET', undefined, undefined, { RSC: '1' })).status, 401, path);
+  }
+  for (const method of ['HEAD', 'OPTIONS', 'POST']) {
+    assert.equal((await app.request('/', method, undefined, '', headers)).status, 405);
+    assert.equal((await app.request('/api/v1/reports', method, undefined, '', headers)).status, 405);
+  }
+  const rsc = await read('/?_rsc=test', { RSC: '1' });
+  assert.equal(rsc.status, 200);
+  assert.match(rsc.headers.get('Content-Type'), /text\/x-component/);
+  assert.equal(rsc.headers.get('Cache-Control'), 'private, no-store');
+  assert.ok((await rsc.text()).includes('Original scanner'));
+  await app.request(`/api/v1/upload/${id}`, 'PUT', { ...input, scanner: { name: 'Changed scanner', version: '2.0' } });
+  const next = await read();
+  assert.notEqual(next.headers.get('Content-Security-Policy'), first.headers.get('Content-Security-Policy'));
+  const nextHtml = await next.text();
+  assert.ok(nextHtml.includes('Changed scanner'));
+  assert.ok(!nextHtml.includes('Original scanner'));
+  assert.ok(!(await (await read('/?q=missing')).text()).includes('Changed scanner'));
+  assert.equal((await app.mf.dispatchFetch('https://alternate.example/?_rsc=test', { headers: { ...headers, RSC: '1' } })).status, 421);
+});
