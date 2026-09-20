@@ -82,6 +82,17 @@ artifacts with real workerd/D1 and keep assets behind the Worker boundary.
 
 ## Publish a report
 
+Install the agent skill to publish from other projects:
+
+```sh
+npx skills add yearn/yearn-scan
+```
+
+The [yearn-scan skill](skills/yearn-scan/SKILL.md) includes a standalone Node.js
+22+ helper for creates and updates. It uses `YEARN_SCAN_PUBLISH_TOKEN` (or
+`YEARN_SCAN_PUBLISH_KEY`) and can load credentials from `~/.env` with Node's
+`--env-file` option. It requires no checkout or installation of this app.
+
 Set `YEARN_SCAN_PUBLISH_KEY` to a full issued `clientname--apikey` token. Set
 `YEARN_SCAN_URL` to an origin if it differs from `https://scan.yearn.dev`.
 Keep the same `run_id` and original payload when retrying a create.
