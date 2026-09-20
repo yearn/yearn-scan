@@ -82,7 +82,7 @@ artifacts with real workerd/D1 and keep assets behind the Worker boundary.
 
 ## Publish a report
 
-Set `YEARN_SCAN_PUBLISH_KEY` to a full issued `clientname__apikey` token. Set
+Set `YEARN_SCAN_PUBLISH_KEY` to a full issued `clientname--apikey` token. Set
 `YEARN_SCAN_URL` to an origin if it differs from `https://scan.yearn.dev`.
 Keep the same `run_id` and original payload when retrying a create.
 

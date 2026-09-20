@@ -34,7 +34,7 @@ test('create, ownership, canonical retries and immutable create identity', async
 });
 
 test('publishing authentication, revoked/replacement keys and method boundaries', async t => {
-  const replacement = `first__${'c'.repeat(43)}`;
+  const replacement = `first--${'c'.repeat(43)}`;
   const app = await setup({ PUBLISH_KEYS: `${replacement},${keyB}` }); t.after(() => app.mf.dispose());
   const oldId = crypto.randomUUID();
   const oldInput = fixture();
@@ -43,7 +43,7 @@ test('publishing authentication, revoked/replacement keys and method boundaries'
     .bind(oldId, fingerprint, 'first', oldInput.run_id, JSON.stringify(oldInput), JSON.stringify(oldInput)).run();
   assert.equal((await app.request(`/api/v1/upload/${oldId}`, 'PUT', oldInput, replacement)).status, 404, 'replacement key does not inherit ownership');
   assert.equal((await app.request(`/api/v1/upload/${oldId}`, 'PUT', oldInput, keyA)).status, 401, 'revoked owner cannot update');
-  for (const key of [keyA, '', keyB.slice(0, -1), 'first__invalid']) {
+  for (const key of [keyA, '', keyB.slice(0, -1), 'first--invalid']) {
     assert.equal((await app.request('/api/v1/upload', 'POST', fixture(), key)).status, 401);
   }
   assert.equal((await app.request('/api/v1/upload', 'POST', fixture(), replacement)).status, 201);
@@ -56,6 +56,29 @@ test('publishing authentication, revoked/replacement keys and method boundaries'
   assert.equal((await app.request('/api/v1/upload/not-an-id', 'PUT', fixture())).status, 401);
   assert.equal((await app.mf.dispatchFetch('https://yearn-scan.other.workers.dev/')).status, 421);
   assert.equal((await app.mf.dispatchFetch('https://preview.yearn.dev/api/v1/upload', { method: 'POST', headers: { Authorization: `Bearer ${replacement}` } })).status, 421);
+});
+
+test('publishing uses the first double dash and preserves hyphens in client labels and keys', async t => {
+  const key = `review-agent--${'a'.repeat(32)}--tail__`;
+  const app = await setup({ PUBLISH_KEYS: key }); t.after(() => app.mf.dispose());
+  const input = fixture();
+  const response = await app.request('/api/v1/upload', 'POST', input, key);
+  assert.equal(response.status, 201);
+  const { id } = await response.json();
+  const stored = await app.db.prepare('SELECT client, owner_fingerprint FROM reports WHERE id = ?').bind(id).first();
+  assert.equal(stored.client, 'review-agent');
+  assert.equal(stored.owner_fingerprint, Buffer.from(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(key))).toString('hex'));
+  assert.equal((await app.request(`/api/v1/upload/${id}`, 'PUT', { ...input, status: 'failed' }, key)).status, 200);
+});
+
+test('malformed and duplicate publishing entries fail closed', async t => {
+  for (const key of [`first__${'a'.repeat(43)}`, `--${'a'.repeat(43)}`, 'first--short', `first--${'a'.repeat(257)}`, `${keyA},${keyA}`]) {
+    const app = await setup({ PUBLISH_KEYS: key });
+    try {
+      assert.equal((await app.request('/api/v1/upload', 'POST', fixture(), keyA)).status, 503);
+      assert.equal((await app.db.prepare('SELECT COUNT(*) AS n FROM reports').first()).n, 0);
+    } finally { await app.mf.dispose(); }
+  }
 });
 
 test('mutation code calls a failing D1 batch exactly once', async () => {

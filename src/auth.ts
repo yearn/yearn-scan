@@ -12,7 +12,14 @@ export interface Publisher { client: string; fingerprint: string }
 
 export async function authenticatePublisher(request: Request, env: Env): Promise<Publisher> {
   const entries = (env.PUBLISH_KEYS || '').split(',').map(x => x.trim()).filter(Boolean);
-  if (!entries.length || entries.some(x => !/^[a-zA-Z0-9][a-zA-Z0-9-]{0,63}__[a-zA-Z0-9_-]{32,256}$/.test(x)) || new Set(entries).size !== entries.length) {
+  const clients = entries.map(entry => {
+    const separator = entry.indexOf('--');
+    const client = entry.slice(0, separator);
+    const key = entry.slice(separator + 2);
+    return separator > 0 && /^[a-zA-Z0-9][a-zA-Z0-9-]{0,63}$/.test(client)
+      && /^[a-zA-Z0-9_-]{32,256}$/.test(key) ? client : null;
+  });
+  if (!entries.length || clients.some(client => client === null) || new Set(entries).size !== entries.length) {
     throw new HttpError(503, 'Publishing is not configured');
   }
   const header = request.headers.get('Authorization') || '';
@@ -27,7 +34,7 @@ export async function authenticatePublisher(request: Request, env: Env): Promise
     if (equal) match = i;
   }
   if (match < 0) throw new HttpError(401, 'Invalid publishing key');
-  return { client: entries[match]!.split('__')[0]!, fingerprint: hex(hashes[match]!) };
+  return { client: clients[match]!, fingerprint: hex(hashes[match]!) };
 }
 
 type SigningKey = JsonWebKey & { kid: string };

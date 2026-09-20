@@ -2,8 +2,8 @@ import { Miniflare } from 'miniflare';
 import { readFile, readdir } from 'node:fs/promises';
 
 export const origin = 'https://scan.yearn.dev';
-export const keyA = `first__${'a'.repeat(43)}`;
-export const keyB = `second__${'b'.repeat(43)}`;
+export const keyA = `first--${'a'.repeat(43)}`;
+export const keyB = `second--${'b'.repeat(43)}`;
 export const issuer = 'https://test.cloudflareaccess.com';
 export const audience = 'test-audience';
 export const fixture = (overrides = {}) => ({

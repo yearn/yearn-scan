@@ -72,10 +72,10 @@ Sessions. D1 [batch operations are transactional](https://developers.cloudflare.
 ## 3. Issue publishing keys
 
 Generate at least 32 random bytes for each key, encoded as base64url (43
-characters). Prefix with a nonempty client label: `clientname__apikey`.
+characters). Prefix with a nonempty client label: `clientname--apikey`.
 Labels permit letters, digits and hyphens, start alphanumeric, and are at most
 64 characters. API key strings permit letters, digits, `_`, `-`, and must be
-32–256 characters. The double underscore is the separator.
+32–256 characters. The first double dash (`--`) is the separator; labels cannot contain `--`.
 
 Store the entire comma-separated list as the Worker secret `PUBLISH_KEYS`, not
 as a plain Wrangler variable. Use your secret manager or Wrangler's interactive

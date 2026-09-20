@@ -11,7 +11,7 @@ export async function upload(args, env = process.env, fetcher = fetch) {
     throw new Error('Usage: pnpm upload create FILE.json | pnpm upload update ID FILE.json');
   }
   const key = env.YEARN_SCAN_PUBLISH_KEY;
-  if (!key) throw new Error('Set YEARN_SCAN_PUBLISH_KEY to the complete clientname__apikey entry');
+  if (!key) throw new Error('Set YEARN_SCAN_PUBLISH_KEY to the complete clientname--apikey entry');
   let origin;
   try {
     origin = new URL(env.YEARN_SCAN_URL || 'https://scan.yearn.dev');

@@ -49,7 +49,7 @@ Suggested scan types (custom slugs are accepted):
 
 ## Create
 
-`POST /api/v1/upload` with `Authorization: Bearer clientname__apikey`.
+`POST /api/v1/upload` with `Authorization: Bearer clientname--apikey`.
 The client name comes from configured keys, never from submitted metadata.
 
 ```sh
